@@ -18,6 +18,13 @@ export function BookSearchPage() {
     };
   }, []);
 
+  // Listen for reading list changes (for cross-tab and cross-component updates)
+  useEffect(() => {
+    const handler = () => setSearchResults(r => [...r]); // force re-render
+    window.addEventListener('reading-list-changed', handler);
+    return () => window.removeEventListener('reading-list-changed', handler);
+  }, []);
+
   const [searchResults, setSearchResults] = useState<BookSearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +43,12 @@ export function BookSearchPage() {
         gridRef.current.scrollTo(0); // Reset scroll on new search
       }
       const response = await searchBooks({ query });
-      setSearchResults(response.docs);
+      // Pre-fill the array with undefined to the total number of items
+      const initialResults = new Array(response.numFound);
+      response.docs.forEach((doc, i) => {
+        initialResults[i] = doc;
+      });
+      setSearchResults(initialResults);
       setTotalItems(response.numFound);
     } catch (err) {
       setError('Failed to search books. Please try again.');
@@ -47,21 +59,28 @@ export function BookSearchPage() {
   };
 
   const isItemLoaded = (index: number) => {
-    return index < searchResults.length;
+    return !!searchResults[index];
   };
 
   const loadMoreItems = async (startIndex: number, stopIndex: number) => {
-    if (!currentQuery || isLoading || searchResults.length >= totalItems) return;
+    if (!currentQuery || isLoading || searchResults.filter(Boolean).length >= totalItems) return;
     try {
       setIsLoading(true);
-      const itemsPerPage = stopIndex - startIndex + 1;
-      const page = Math.floor(startIndex / itemsPerPage) + 1;
+      const limit = stopIndex - startIndex + 1;
+      const offset = startIndex;
       const response = await searchBooks({ 
         query: currentQuery,
-        page,
-        limit: itemsPerPage
+        limit,
+        offset
       });
-      setSearchResults(prev => [...prev, ...response.docs]);
+      setSearchResults(prev => {
+        const updated = prev.length === totalItems ? [...prev] : new Array(totalItems);
+        prev.forEach((item, i) => { updated[i] = item; });
+        response.docs.forEach((doc, i) => {
+          updated[startIndex + i] = doc;
+        });
+        return updated;
+      });
     } catch (err) {
       console.error('Error loading more items:', err);
     } finally {
@@ -96,7 +115,18 @@ export function BookSearchPage() {
             </div>
           )}
 
-          {(searchResults.length > 0 || (isLoading && currentQuery)) && (
+          {isLoading && currentQuery && searchResults.length === 0 && (
+            <div className="text-center py-20">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-stripe-surface mb-6">
+                <div className="w-10 h-10 border-4 border-stripe-primary border-t-transparent rounded-full animate-spin"></div>
+              </div>
+              <p className="text-lg text-stripe-text-subtle">
+                Searching for "{currentQuery}"...
+              </p>
+            </div>
+          )}
+
+          {(searchResults.length > 0 || (isLoading && searchResults.length > 0)) && (
             <div>
               <div className="mb-8 text-stripe-text-secondary text-center">
                 <span className="font-medium text-stripe-text">{totalItems.toLocaleString()}</span> books found for "{currentQuery}"
@@ -117,12 +147,12 @@ export function BookSearchPage() {
 
           {!isLoading && !error && searchResults.length === 0 && currentQuery && (
             <div className="text-center py-20">
-                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-stripe-surface mb-6">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-stripe-surface mb-6">
                 <span className="text-4xl">😕</span>
-                </div>
-                <p className="text-lg text-stripe-text-subtle">
+              </div>
+              <p className="text-lg text-stripe-text-subtle">
                 No books found for "{currentQuery}". Try a different search.
-                </p>
+              </p>
             </div>
           )}
 

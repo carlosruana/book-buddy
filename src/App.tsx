@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 // import { BookDetailsPage } from './pages/BookDetailsPage'; // No longer directly used here
 // import { SearchPageLayout } from './pages/SearchPageLayout';
 import { BookSearchPage } from './pages/BookSearchPage';
+import ReadingListPage from './pages/ReadingListPage';
 import './App.css';
 
 function App() {
@@ -41,32 +42,7 @@ function App() {
           <Routes>
             <Route path="/" element={<BookSearchPage />} />
             <Route path="/book/:bookKey" element={<BookSearchPage />} />
-            
-            <Route 
-              path="/reading-list" 
-              element={
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
-                  <div className="max-w-4xl mx-auto">
-                    <div className="text-center mb-12">
-                      <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-stripe-primary to-purple-600 bg-clip-text text-transparent">
-                        Your Reading List
-                      </h1>
-                      <p className="text-lg text-stripe-text-secondary">
-                        Keep track of the books that catch your interest
-                      </p>
-                    </div>
-                    <div className="bg-white/50 backdrop-blur-sm border border-stripe-border/10 rounded-3xl p-12 text-center shadow-xl">
-                      <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-stripe-surface mb-6">
-                        <span className="text-4xl">📚</span>
-                      </div>
-                      <p className="text-lg text-stripe-text-subtle">
-                        Your reading list is empty. Start adding books you'd like to read!
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              } 
-            />
+            <Route path="/reading-list" element={<ReadingListPage />} />
           </Routes>
         </main>
 

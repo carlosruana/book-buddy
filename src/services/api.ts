@@ -18,7 +18,7 @@ export interface SearchResponse {
 
 export interface BookDetailsResult {
   title: string;
-  authors?: Array<{ name: string; key: string; /* Other potential author fields */ }>;
+  authors?: Array<{ name: string; key: string; }>;
   covers?: number[];
   description?: string | { type: string; value: string };
   subjects?: string[];
@@ -33,6 +33,7 @@ export interface SearchParams {
   query: string;
   page?: number;
   limit?: number;
+  offset?: number;
 }
 
 export const searchBooks = async ({ query, page = 1, limit = 20 }: SearchParams): Promise<SearchResponse> => {
@@ -60,7 +61,26 @@ export const getBookDetails = async (bookId: string): Promise<BookDetailsResult>
     // or the full path if the function handles it. The current function seems to expect just the ID.
     const actualBookId = bookId.startsWith('/works/') ? bookId.split('/').pop() : bookId;
     const response = await axios.get(`${BASE_URL}/works/${actualBookId}.json`);
-    return response.data;
+    const work = response.data;
+
+    // Fetch author names
+    if (work.authors && Array.isArray(work.authors)) {
+      const authorDetails = await Promise.all(
+        work.authors.map(async (a: any) => {
+          const authorId = a.author?.key?.split('/').pop();
+          if (!authorId) return { key: a.author?.key, name: '' };
+          try {
+            const authorRes = await axios.get(`${BASE_URL}/authors/${authorId}.json`);
+            return { key: a.author?.key, name: authorRes.data.name || '' };
+          } catch {
+            return { key: a.author?.key, name: '' };
+          }
+        })
+      );
+      work.authors = authorDetails;
+    }
+
+    return work;
   } catch (error) {
     console.error('Error fetching book details:', error);
     throw error;
