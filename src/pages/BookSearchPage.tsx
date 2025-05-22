@@ -26,7 +26,6 @@ export function BookSearchPage() {
   const gridRef = useRef<ReactWindowList | null>(null);
   const [loadedItemsCount, setLoadedItemsCount] = useState(0);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const pendingRequestRef = useRef<{ start: number; end: number } | null>(null);
 
   const handleSearch = async (query: string) => {
     try {

@@ -26,8 +26,6 @@ const MIN_VISIBLE_ROWS = 2;
 const MAX_BUFFER_ROWS = 4;
 const VIRTUAL_WINDOW_SIZE = 100;
 const ITEMS_PER_PAGE = 20;
-const VISIBLE_ROWS_THRESHOLD = 6; // Increased to load more proactively
-const OVERSCAN_ROWS = 3; // Increased to render more rows beyond visible area
 
 const BREAKPOINTS = [
   { max: 640, columns: 1 },    // mobile
