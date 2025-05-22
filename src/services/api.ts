@@ -31,14 +31,13 @@ export interface BookDetailsResult {
 
 export interface SearchParams {
   query: string;
-  page?: number;
   limit?: number;
   offset?: number;
 }
 
-export const searchBooks = async ({ query, page = 1, limit = 20 }: SearchParams): Promise<SearchResponse> => {
+export const searchBooks = async ({ query, limit = 20, offset = 0 }: SearchParams): Promise<SearchResponse> => {
   try {
-    const offset = (page - 1) * limit;
+    console.log('API call params:', { query, limit, offset });
     const response = await axios.get(`${BASE_URL}/search.json`, {
       params: {
         q: query,
@@ -46,6 +45,11 @@ export const searchBooks = async ({ query, page = 1, limit = 20 }: SearchParams)
         limit,
         offset,
       }
+    });
+    console.log('API response:', { 
+      numFound: response.data.numFound,
+      start: response.data.start,
+      docsLength: response.data.docs.length 
     });
     return response.data;
   } catch (error) {

@@ -6,17 +6,10 @@ import { VirtualizedBookGrid } from '../components/Books/VirtualizedBookGrid';
 import { searchBooks, type BookSearchResult } from '../services/api';
 import { BookDetailsPage } from './BookDetailsPage';
 
+const ITEMS_PER_PAGE = 20;
+
 export function BookSearchPage() {
   const { bookKey } = useParams<{ bookKey: string }>();
-
-  useEffect(() => {
-    console.log('BookSearchPage Instance MOUNTED');
-    // Optional: Log when bookKey changes to see render cycles
-    // console.log(`BookSearchPage re-rendered, bookKey: ${bookKey}`);
-    return () => {
-      console.log('BookSearchPage Instance UNMOUNTED');
-    };
-  }, []);
 
   // Listen for reading list changes (for cross-tab and cross-component updates)
   useEffect(() => {
@@ -31,6 +24,9 @@ export function BookSearchPage() {
   const [totalItems, setTotalItems] = useState(0);
   const [currentQuery, setCurrentQuery] = useState('');
   const gridRef = useRef<ReactWindowList | null>(null);
+  const [loadedItemsCount, setLoadedItemsCount] = useState(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const pendingRequestRef = useRef<{ start: number; end: number } | null>(null);
 
   const handleSearch = async (query: string) => {
     try {
@@ -39,10 +35,12 @@ export function BookSearchPage() {
       setCurrentQuery(query);
       setSearchResults([]);
       setTotalItems(0);
+      setLoadedItemsCount(0);
       if (gridRef.current && typeof gridRef.current.scrollTo === 'function') {
         gridRef.current.scrollTo(0); // Reset scroll on new search
       }
-      const response = await searchBooks({ query });
+      console.log('Initial search:', { query, limit: 20, offset: 0 });
+      const response = await searchBooks({ query, limit: 20, offset: 0 });
       // Pre-fill the array with undefined to the total number of items
       const initialResults = new Array(response.numFound);
       response.docs.forEach((doc, i) => {
@@ -50,6 +48,11 @@ export function BookSearchPage() {
       });
       setSearchResults(initialResults);
       setTotalItems(response.numFound);
+      setLoadedItemsCount(response.docs.length);
+      console.log('Initial search complete:', { 
+        docsLoaded: response.docs.length,
+        totalItems: response.numFound 
+      });
     } catch (err) {
       setError('Failed to search books. Please try again.');
       console.error(err);
@@ -63,28 +66,78 @@ export function BookSearchPage() {
   };
 
   const loadMoreItems = async (startIndex: number, stopIndex: number) => {
-    if (!currentQuery || isLoading || searchResults.filter(Boolean).length >= totalItems) return;
+    console.log('loadMoreItems called with:', { startIndex, stopIndex, currentLoadedItems: loadedItemsCount });
+    
+    if (!currentQuery || isLoading || isLoadingMore) {
+      console.log('Skipping loadMoreItems:', { 
+        hasQuery: !!currentQuery, 
+        isLoading,
+        isLoadingMore,
+        loadedItemsCount, 
+        totalItems 
+      });
+      return;
+    }
+
+    // If we're already at or beyond the total items, don't load more
+    if (loadedItemsCount >= totalItems) {
+      console.log('Already loaded all items:', { loadedItemsCount, totalItems });
+      return;
+    }
+
+    // Calculate which page we need based on the startIndex
+    const pageSize = ITEMS_PER_PAGE;
+    const nextPage = Math.floor(startIndex / pageSize);
+    const offset = nextPage * pageSize;
+
+    // If we already have this page loaded, skip
+    if (offset < loadedItemsCount) {
+      console.log('Page already loaded:', {
+        offset,
+        loadedItemsCount,
+        nextPage
+      });
+      return;
+    }
+
     try {
-      setIsLoading(true);
-      const limit = stopIndex - startIndex + 1;
-      const offset = startIndex;
-      const response = await searchBooks({ 
+      setIsLoadingMore(true);
+      console.log('Loading page:', {
+        page: nextPage,
+        offset,
+        pageSize,
+        currentLoaded: loadedItemsCount
+      });
+
+      const response = await searchBooks({
         query: currentQuery,
-        limit,
+        limit: pageSize,
         offset
       });
+
+      if (response.docs.length === 0) {
+        console.log('No more items to load');
+        return;
+      }
+
+      console.log('Loaded new items:', {
+        newItems: response.docs.length,
+        offset,
+        totalLoaded: loadedItemsCount + response.docs.length
+      });
+
       setSearchResults(prev => {
-        const updated = prev.length === totalItems ? [...prev] : new Array(totalItems);
-        prev.forEach((item, i) => { updated[i] = item; });
+        const updated = [...prev];
         response.docs.forEach((doc, i) => {
-          updated[startIndex + i] = doc;
+          updated[offset + i] = doc;
         });
         return updated;
       });
+      setLoadedItemsCount(prev => prev + response.docs.length);
     } catch (err) {
       console.error('Error loading more items:', err);
     } finally {
-      setIsLoading(false);
+      setIsLoadingMore(false);
     }
   };
 
@@ -130,12 +183,18 @@ export function BookSearchPage() {
             <div>
               <div className="mb-8 text-stripe-text-secondary text-center">
                 <span className="font-medium text-stripe-text">{totalItems.toLocaleString()}</span> books found for "{currentQuery}"
+                {loadedItemsCount < totalItems && (
+                  <span className="text-stripe-text-subtle ml-2">
+                    (Showing {loadedItemsCount} of {totalItems.toLocaleString()})
+                  </span>
+                )}
               </div>
               <div className="bg-white/50 backdrop-blur-sm rounded-3xl border border-stripe-border/10 p-6 sm:p-8 shadow-xl">
                 <VirtualizedBookGrid
                   ref={gridRef}
                   items={searchResults}
                   totalItems={totalItems}
+                  loadedItemsCount={loadedItemsCount}
                   isItemLoaded={isItemLoaded}
                   loadMoreItems={loadMoreItems}
                   isLoading={isLoading}

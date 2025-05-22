@@ -32,11 +32,12 @@ export default function ReadingListPage() {
         </div>
       ) : (
         <div>
-          <div className="bg-white/50 backdrop-blur-sm rounded-3xl border border-stripe-border/10 shadow-xl">
-            <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          <div className="bg-white/50 backdrop-blur-sm rounded-3xl border border-stripe-border/10 shadow-xl overflow-hidden">
+            <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8 overflow-hidden">
               <VirtualizedBookGrid
                 items={books}
                 totalItems={books.length}
+                loadedItemsCount={books.length}
                 isItemLoaded={() => true}
                 loadMoreItems={() => Promise.resolve()}
                 isLoading={false}
